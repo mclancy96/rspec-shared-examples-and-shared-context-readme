@@ -1,6 +1,6 @@
 # RSpec: Shared Examples & Shared Context: DRYing Up Your Specs
 
-Welcome to Lesson 11! In this lesson, you'll learn how to reuse test logic across examples using RSpec's `shared_examples`, `shared_context`, `include_examples`, and `include_context`. We'll show you how these tools help you keep your specs DRY, readable, and maintainable—especially in larger apps. If you know Ruby and Rails but are new to automated testing, this is your guide to writing less code and getting more coverage!
+In this lesson, you'll learn how to reuse test logic across examples using RSpec's `shared_examples`, `shared_context`, `include_examples`, and `include_context`. We'll show you how these tools help you keep your specs DRY, readable, and maintainable—especially in larger apps. If you know Ruby and Rails but are new to automated testing, this is your guide to writing less code and getting more coverage!
 
 ---
 
