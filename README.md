@@ -17,32 +17,38 @@ As your app grows, you'll find yourself writing the same expectations or setup i
 
 ### The Alternative: Copy-Paste Chaos
 
-Suppose you have three models that all need to be soft deletable. Without shared examples, you might do this:
+Suppose you have three vehicle classes that all need to be able to start and stop. Without shared examples, you might do this:
 
 ```ruby
-# /spec/models/user_spec.rb
-it "can be soft deleted" do
-  user = create(:user)
-  user.soft_delete!
-  expect(user.deleted?).to be true
+# /spec/car_spec.rb
+it "can start and stop" do
+  car = Car.new("Toyota", "Corolla")
+  car.start
+  expect(car).to be_started
+  car.stop
+  expect(car).not_to be_started
 end
 
-# /spec/models/post_spec.rb
-it "can be soft deleted" do
-  post = create(:post)
-  post.soft_delete!
-  expect(post.deleted?).to be true
+# /spec/bike_spec.rb
+it "can start and stop" do
+  bike = Bike.new("Trek", "FX 3")
+  bike.start
+  expect(bike).to be_started
+  bike.stop
+  expect(bike).not_to be_started
 end
 
-# /spec/models/comment_spec.rb
-it "can be soft deleted" do
-  comment = create(:comment)
-  comment.soft_delete!
-  expect(comment.deleted?).to be true
+# /spec/boat_spec.rb
+it "can start and stop" do
+  boat = Boat.new("Yamaha", "242X")
+  boat.start
+  expect(boat).to be_started
+  boat.stop
+  expect(boat).not_to be_started
 end
 ```
 
-If you ever change how soft deletion works, you have to update every copy. It's easy to miss one!
+If you ever change how starting/stopping works, you have to update every copy. It's easy to miss one!
 
 ---
 
@@ -59,18 +65,23 @@ Here's a quick comparison to help you remember:
 
 **Tip:** Use shared examples for repeated tests, and shared context for repeated setup.
 
-Shared examples let you define a set of tests once and include them in multiple places. This is perfect for shared behaviors (e.g., validations, soft deletion, permissions).
+Shared examples let you define a set of tests once and include them in multiple places. This is perfect for shared behaviors (e.g., starting/stopping, wheel count, etc.).
 
 **How does it work?** Shared examples run expectations against the current `subject`. You can set `subject { ... }` in your spec to control what is being tested.
 
-### Example 1: Soft Deletable
+### Example 1: Startable Vehicle
 
 ```ruby
-# /spec/support/shared_examples/soft_deletable.rb
-RSpec.shared_examples "soft deletable" do
-  it "can be soft deleted" do
-    subject.soft_delete!
-    expect(subject.deleted?).to be true
+# /spec/shared_examples_spec.rb
+RSpec.shared_examples "a vehicle that can start and stop" do
+  it "can start" do
+    subject.start
+    expect(subject).to be_started
+  end
+  it "can stop" do
+    subject.start
+    subject.stop
+    expect(subject).not_to be_started
   end
 end
 ```
@@ -78,160 +89,89 @@ end
 You can include these examples in any spec:
 
 ```ruby
-# /spec/models/user_spec.rb
-require 'rails_helper'
-require 'support/shared_examples/soft_deletable'
+# /spec/car_spec.rb
+require 'car'
+require_relative 'shared_examples_spec'
 
-RSpec.describe User, type: :model do
-  subject { create(:user) } # This is what the shared example will test
-  it_behaves_like "soft deletable"
+RSpec.describe Car do
+  subject { Car.new("Toyota", "Corolla") }
+  it_behaves_like "a vehicle that can start and stop"
 end
 ```
-
-**RSpec 5 Syntax Tip:** `it_behaves_like` and `include_examples` are interchangeable. Some teams prefer one for readability, but both do the same thing.
 
 Or with `include_examples`:
 
 ```ruby
-# /spec/models/post_spec.rb
-require 'rails_helper'
-require 'support/shared_examples/soft_deletable'
+# /spec/bike_spec.rb
+require 'bike'
+require_relative 'shared_examples_spec'
 
-RSpec.describe Post, type: :model do
-  subject { create(:post) }
-  include_examples "soft deletable"
+RSpec.describe Bike do
+  subject { Bike.new("Trek", "FX 3") }
+  include_examples "a vehicle that can start and stop"
 end
 ```
 
-### Example 2: Validates Presence
+### Example 2: Wheeled Vehicle (with arguments)
 
 ```ruby
-# /spec/support/shared_examples/validates_presence_of.rb
-RSpec.shared_examples "validates presence of" do |field|
-  it "is invalid without #{field}" do
-    subject.send("#{field}=", nil)
-    expect(subject).not_to be_valid
+# /spec/shared_examples_spec.rb
+RSpec.shared_examples "a wheeled vehicle" do |expected_wheels|
+  it "has the correct number of wheels" do
+    expect(subject.wheels).to eq(expected_wheels)
   end
 end
 ```
 
 ```ruby
-# /spec/models/user_spec.rb
-it_behaves_like "validates presence of", :username
-it_behaves_like "validates presence of", :email
+# /spec/car_spec.rb
+it_behaves_like "a wheeled vehicle", 4
+# /spec/bike_spec.rb
+it_behaves_like "a wheeled vehicle", 2
+# /spec/boat_spec.rb
+it_behaves_like "a wheeled vehicle", 0
 ```
 
-### Example 3: API Error Handling
-
-```ruby
-# /spec/support/shared_examples/api_error_response.rb
-RSpec.shared_examples "api error response" do |status|
-  it "returns status #{status}" do
-    expect(response).to have_http_status(status)
-  end
-  it "returns an error message" do
-    expect(JSON.parse(response.body)["error"]).to be_present
-  end
-end
-```
-
-```ruby
-# /spec/requests/users_spec.rb
-include_examples "api error response", :not_found
-```
+---
 
 ---
 
 ## Shared Context: Reusing Setup
 
-Shared context lets you share setup code (like `let`, `before`, or helper methods) across multiple specs. This is great for authentication, common data, or repeated setup.
+Shared context lets you share setup code (like `let`, `before`, or helper methods) across multiple specs. This is great for repeated setup, like starting a vehicle or setting a full tank.
 
-### Example 1: Authenticated User
+### Example 1: With a Started Vehicle
 
 ```ruby
-# /spec/support/shared_contexts/authenticated_user.rb
-RSpec.shared_context "authenticated user" do
-  let(:user) { create(:user) }
-  before { sign_in user }
+# /spec/shared_examples_spec.rb
+RSpec.shared_context "with a started vehicle" do
+  before { subject.start }
 end
 ```
 
-You can include this context in any spec. Shared context adds variables, setup, or helper methods to the group—useful for authentication, sample data, or helpers.
+You can include this context in any spec. Shared context adds setup or helper methods to the group.
 
 ```ruby
-# /spec/requests/dashboard_spec.rb
-require 'rails_helper'
-require 'support/shared_contexts/authenticated_user'
-
-RSpec.describe "Dashboard", type: :request do
-  include_context "authenticated user"
-  it "shows the dashboard" do
-    get "/dashboard"
-    expect(response).to have_http_status(:ok)
-  end
-end
-```
-
-### Example 2: Shared Data
-
-```ruby
-# /spec/support/shared_contexts/shared_data.rb
-RSpec.shared_context "with sample data" do
-  let!(:user) { create(:user) }
-  let!(:post) { create(:post, user: user) }
-end
-```
-
-```ruby
-# /spec/requests/posts_spec.rb
-include_context "with sample data"
-it "shows the user's post" do
-  get "/users/#{user.id}/posts"
-  expect(response.body).to include(post.title)
-end
-```
-
-### Example 3: Helper Methods
-
-```ruby
-# /spec/support/shared_contexts/json_helpers.rb
-RSpec.shared_context "json helpers" do
-  def json
-    JSON.parse(response.body)
-  end
-end
-```
-
-```ruby
-# /spec/requests/api_spec.rb
-include_context "json helpers"
-it "returns a JSON response" do
-  get "/api/resource"
-  expect(json["data"]).to be_present
-end
-
-# You can combine shared contexts for more realistic API specs:
-include_context "authenticated user"
-include_context "json helpers"
-it "returns a JSON response for an authenticated user" do
-  get "/api/protected_resource"
-  expect(response).to have_http_status(:ok)
-  expect(json["data"]).to be_present
+# /spec/car_spec.rb
+include_context "with a started vehicle"
+it "is started" do
+  expect(subject).to be_started
 end
 ```
 
 ---
 
+---
+
 ## Passing Arguments to Shared Examples
 
-You can make shared examples more flexible by passing arguments:
+You can make shared examples more flexible by passing arguments. For example, our wheeled vehicle shared example takes the expected number of wheels:
 
 ```ruby
-# /spec/support/shared_examples/validates_presence_of.rb
-RSpec.shared_examples "validates presence of" do |field|
-  it "is invalid without #{field}" do
-    subject.send("#{field}=", nil)
-    expect(subject).not_to be_valid
+# /spec/shared_examples_spec.rb
+RSpec.shared_examples "a wheeled vehicle" do |expected_wheels|
+  it "has the correct number of wheels" do
+    expect(subject.wheels).to eq(expected_wheels)
   end
 end
 ```
@@ -239,34 +179,31 @@ end
 Use it like this:
 
 ```ruby
-# /spec/models/user_spec.rb
-it_behaves_like "validates presence of", :username
-it_behaves_like "validates presence of", :email
+# /spec/car_spec.rb
+it_behaves_like "a wheeled vehicle", 4
+# /spec/bike_spec.rb
+it_behaves_like "a wheeled vehicle", 2
+# /spec/boat_spec.rb
+it_behaves_like "a wheeled vehicle", 0
 ```
 
 ---
 
 ## Best Practices for Shared Examples & Contexts
 
-- Put shared examples and contexts in `/spec/support/` and require them in `rails_helper.rb`:
-
-```ruby
-# /spec/rails_helper.rb
-Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
-```
-
-- Name shared examples and contexts clearly ("soft deletable", "authenticated user", "validates presence of")
-- Use shared examples for expectations, shared context for setup
-- Don't overuse—only DRY up code that's repeated in 2+ places
-- Keep shared code simple and focused—avoid making them too clever or generic
-- Document what each shared example/context is for
+- Put shared examples and contexts in a dedicated file (like `/spec/shared_examples_spec.rb`) and require or load them in your spec files as needed.
+- Name shared examples and contexts clearly (e.g., "a vehicle that can start and stop", "a wheeled vehicle", "with a started vehicle").
+- Use shared examples for expectations, shared context for setup.
+- Don't overuse—only DRY up code that's repeated in 2+ places.
+- Keep shared code simple and focused—avoid making them too clever or generic.
+- Document what each shared example/context is for.
 
 **Anti-pattern:**
 
 ```ruby
-# /spec/support/shared_examples/giant_shared_example.rb
+# /spec/shared_examples_spec.rb
 RSpec.shared_examples "giant shared example" do
-  # 100 lines of unrelated tests
+  # 100 lines of unrelated vehicle tests
 end
 ```
 
@@ -274,18 +211,36 @@ end
 
 ---
 
-## Practice Prompts & Reflection Questions
+## Getting Hands-On
 
-Try these exercises to reinforce your learning:
+Ready to practice? Here’s how to get started:
 
-1. Write a shared example for a common validation and use it in two model specs. How does it help if you later change the validation?
-2. Write a shared context for a logged-in user and use it in a request spec. How does it help with repeated setup?
-3. Refactor a spec file to use shared examples or contexts. How does it improve readability and maintainability?
-4. Why is it important not to overuse shared examples/contexts? What could go wrong if you make them too generic?
-5. Write a shared example that takes an argument and use it for multiple fields.
-6. Write a shared context that provides helper methods for parsing JSON responses.
+1. **Fork and clone this repo to your own GitHub account.**
+2. **Install dependencies:**
 
-Reflect: What could go wrong if you copy-paste expectations or setup code everywhere? How would it affect your team's ability to refactor or add new features?
+    ```zsh
+    bundle install
+    ```
+
+3. **Run the specs:**
+
+    ```zsh
+    bin/rspec
+    ```
+
+4. **Explore the code:**
+
+   - All lesson code uses the Vehicles domain (see `lib/` and `spec/`).
+   - Review the examples for shared_examples and shared_context in `spec/shared_examples_spec.rb`, `spec/car_spec.rb`, `spec/bike_spec.rb`, and `spec/boat_spec.rb`.
+
+5. **Implement the pending specs:**
+
+   - Open `spec/car_spec.rb` and look for specs marked as `pending`.
+   - Implement the real methods in the vehicle classes (`lib/car.rb`, etc.) as needed so the pending specs pass.
+
+6. **Re-run the specs** to verify your changes!
+
+**Challenge:** Try writing your own shared example or shared context for a new vehicle feature (e.g., "a vehicle that can honk" or "with a flat tire") and use it in multiple specs.
 
 ---
 
